@@ -1,0 +1,19 @@
+---
+
+version: '3'
+
+services:
+  project_exporter:
+    image: python:latest
+    container_name: project_exporter
+    restart: always
+    volumes:
+      - ./src:/project
+      - ./downloads:/project/downloads
+    working_dir: /project
+    network_mode: bridge
+    labels:
+      traefik.enable: 'false'
+    command: sleep infinity
+
+...

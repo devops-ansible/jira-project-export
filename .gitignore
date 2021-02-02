@@ -1,0 +1,5 @@
+.DS_*
+downloads/*
+!downloads/.gitkeep
+src/.env*
+!src/.env.example

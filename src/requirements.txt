@@ -1,0 +1,4 @@
+args
+beautifulsoup4
+python-dotenv
+requests
