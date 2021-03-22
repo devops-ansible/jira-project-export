@@ -132,13 +132,18 @@ except:
     else:
         quiet = "False"
 
-ensure_project_rights = 'Did you ensure, the user “' + username + '” is permitted correctly within the project “' + project + '”?'
+try:
+    project
+    ensure_project_rights = 'Did you ensure, the user “' + username + '” is permitted correctly within the project “' + project + '”?'
+except:
+    ensure_project_rights = 'Did you ensure, the user “' + username + '” is permitted correctly within the projects of the given JQL?'
+
 blanks   = ' ' * ( len(ensure_project_rights) + 2 )
 nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
 print('\u001b[0;1;93;41m' + blanks + nl_color + ' ' + ensure_project_rights + ' ' + nl_color + blanks + '\u001b[0m')
 blanks = ' ' * 56
 nl_color = '\u001b[0m\n\u001b[0;45;92m'
-print('\u001b[0;45;92m' + blanks + nl_color + ' The easiest way to ensure that is to put them in every ' + nl_color +' project role that does exist within the project.       ' + nl_color + blanks + '\u001b[0m')
+print('\u001b[0;45;92m' + blanks + nl_color + ' The easiest way to ensure that is to put them in every ' + nl_color +' project role that does exist within the project(s).       ' + nl_color + blanks + '\u001b[0m')
 if quiet == 'False':
     print()
     if (not confirm()):
