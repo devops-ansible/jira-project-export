@@ -57,6 +57,7 @@ e_jira = os.getenv( "X_JIRA_URL" )
 e_user = os.getenv( "X_JIRA_USER" )
 e_pass = os.getenv( "X_JIRA_PASS" )
 e_prj  = os.getenv( "X_PROJECT_KEY" )
+e_jql  = os.getenv( "X_CUSTOM_FILTER" )
 
 ###
 ## ask user for relevant arguments if not already provided
@@ -68,6 +69,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-j', type=str, nargs='?', help='Jira URL')
 parser.add_argument('-u', type=str, nargs='?', help='Username')
 parser.add_argument('-p', type=str, nargs='?', help='Password')
+parser.add_argument('-f', type=str, nargs='?', help='Filter / JQL instead of project')
 parser.add_argument('-x', type=str, nargs='?', help='Project-Key of project to be exported')
 parser.add_argument('-q', type=str, nargs='?', help='Quiet / Headless mode')
 
@@ -104,14 +106,23 @@ except:
         password = getpass.getpass()
 
 try:
-    project
+    custom_filter
 except:
-    if args.x != None:
-        project = args.x
-    elif e_prj:
-        project = e_prj
+    if args.f != None:
+        custom_filter = args.f
+    elif e_jql:
+        custom_filter = e_jql
     else:
-        project = input('Project-Key of project to be exported: ')
+        custom_filter = False
+        try:
+            project
+        except:
+            if args.x != None:
+                project = args.x
+            elif e_prj:
+                project = e_prj
+            else:
+                project = input('Project-Key of project to be exported: ')
 
 try:
     quiet
@@ -270,9 +281,11 @@ def downloadJQL ( JQL, cound_jql ):
         writer.writerows( csvRows )
     print ('Finished downloading CSV file ' + csv_name + ' and ' + str( c_attach ) + ' corresponding attachments')
 
-
-baseJQL      = 'project = ' + project + ' ORDER BY key'
 downloadBase = 'downloads'
+if custom_filter != False:
+    baseJQL  = custom_filter
+else:
+    baseJQL  = 'project = ' + project + ' ORDER BY key'
 
 allJQLs      = checkJQL(baseJQL)
 
