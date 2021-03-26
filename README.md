@@ -77,6 +77,16 @@ docker exec -it project_exporter ./scraper.py -j "http://178.18.0.34:8080" -u ji
 
 Finally, you'll find all downloaded data – attachments and CSV export – within the `downloads` directory.
 
+### Running the import – Docker based on the Jira host
+
+Let's think, you have your Jira deployed by using a Docker image, so as a Docker Container. The easiest way to import your exported data, is to use a run-of-the-mill webserver image and provide the variable `DOWNLOAD_URL="http://name-of-the-import-container"` while running the script above.
+
+To run a webserver like that, you can simply follow this example – and run it from project root. Be aware to add your deployed webserver container to any of the networks, your Jira container is part of. Unless that, you may not be able to use the short-name variant mentioned above! *(We're using a dedicated `database` network for that case below.)*
+
+```sh
+docker run -d --rm -v $(pwd)/downloads:/var/www/html --network="database" --name "name-of-the-import-container" devopsansiblede/apache
+```
+
 ## License
 
 This project is published unter [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) license.
