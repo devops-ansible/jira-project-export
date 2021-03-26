@@ -135,6 +135,12 @@ except:
             else:
                 project = input('Project-Key of project to be exported: ')
 
+# we need some custom keyword for filenames when no project is defined ...
+try:
+    filename_start = project
+except:
+    filename_start = 'custom'
+
 try:
     quiet
 except:
@@ -187,14 +193,29 @@ from datetime  import datetime
 from pathlib   import Path
 
 currentSession = requests.Session()
+jira_parsed    = parse.urlparse( jira )
+jira_fqdn      = jira_parsed.netloc
+jira_path      = jira_parsed.path
+
+# we add a slash everywhere the jira url is used, so we
+# do not need a trailing slash on the jira url
+if jira_path[-1] == '/':
+    jira      = jira[:-1]
+    jira_path = jira_path[:-1]
+
+###
+## set cookies if some are defined
+###
 try:
     cookies
-    fqdn = parse.urlparse( jira ).netloc
     for key, value in cookies.items():
-        currentSession.cookies.set( key, value, domain=fqdn )
+        currentSession.cookies.set( key, value, domain=jira_fqdn )
 except:
     pass
 
+###
+## function that checks if a login is needed
+###
 def checkForLogin():
     resp = currentSession.get( jira )
     if resp.status_code != 200:
@@ -205,7 +226,16 @@ def checkForLogin():
         login()
         checkForLogin()
 
+###
+## function to perform the actual login
+###
 def login():
+    try:
+        password
+    except:
+        blanks = ' ' * 45
+        nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
+        sys.exit('\n\u001b[0;1;93;41m' + blanks + nl_color +' Sorry, but the cookies defined are invalid. ' + nl_color + blanks + '\u001b[0m\n')
     loginObject = {
         'os_username': username,
         'os_password': password,
@@ -218,6 +248,9 @@ def login():
     if resp.status_code != 200:
         raise APIError(resp.status_code)
 
+###
+## function to fetch content from an URL
+###
 def loginAndFetch(Url, method = 'get', data = {}, skipLogin = False):
     if not skipLogin:
         checkForLogin()
@@ -229,6 +262,9 @@ def loginAndFetch(Url, method = 'get', data = {}, skipLogin = False):
         raise APIError ( resp.status_code )
     return resp
 
+###
+## function that analyses the JQL and devides it into pieces if needed
+###
 def checkJQL ( JQL, jqls = [] ):
     jqlUrl  = jira + '/issues/?jql=' + parse.quote( JQL )
     listUrl = jira + '/rest/issueNav/latest/preferredSearchLayout'
@@ -262,8 +298,6 @@ def checkJQL ( JQL, jqls = [] ):
     except:
         resultCount = 0
 
-    print()
-
     if resultCount >= jiraMaxIssues:
         pageLength = len( soup.find_all( class_ = re.compile( "issuerow" ) ) )
         startIndex = jiraMaxIssues - pageLength
@@ -279,9 +313,13 @@ def checkJQL ( JQL, jqls = [] ):
         jqls.append( JQL )
     return jqls
 
+###
+## function to fully download the results of a JQL – including attachments
+###
 def downloadJQL ( JQL, cound_jql ):
     c_attach  = 0
-    jqlUrl    = jira + '/sr/jira.issueviews:searchrequest-csv-all-fields/temp/SearchRequest.csv?jqlQuery=' + parse.quote( JQL )
+    # we ensure the CSV to basically use `,` as delimiter
+    jqlUrl    = jira + '/sr/jira.issueviews:searchrequest-csv-all-fields/temp/SearchRequest.csv?delimiter=,&jqlQuery=' + parse.quote( JQL )
     resp      = loginAndFetch( jqlUrl )
     csvstring = resp.content.decode("utf-8")
     for oldUser, replaceUser in replace_users.items():
@@ -300,29 +338,21 @@ def downloadJQL ( JQL, cound_jql ):
         csv2rowIndices = csv2rowIndices + x
         if csv2h == 'Attachment':
             attachmentIndices = x
-    # nameCheckIndices = []
-    # for csv2h in nameCheckHeaders:
-    #     x = [ u for u, v in enumerate(headers) if v == csv2h ]
-    #     nameCheckIndices = nameCheckIndices + x
+
     i = 0
     while i < len(csvRows):
         cRow = csvRows[i]
-        # for k in nameCheckIndices:
-        #     if cRow[k] in replace_users:
-        #         csvRows[i][k] = replace_users[ cRow[k] ]
         for j in csv2rowIndices:
             try:
                 specialRow = [ row for row in csv.reader( cRow[j].splitlines(), delimiter=';' ) ][0]
-                # specialRow = list(csv.reader( cRow[j].splitlines(), delimiter=';' ))[0]
-                # if specialRow[1] in replace_users:
-                #     specialRow[1] = replace_users[ specialRow[ 1 ] ]
+                # do the attachment downloads
                 if j in attachmentIndices:
                     dlUrlParts = parse.urlparse( specialRow[3] )
                     dlUrl      = jira + dlUrlParts.path
                     resp = loginAndFetch( dlUrl )
                     fileRoot, fileExt = os.path.splitext( dlUrlParts.path )
                     oldFileId = dlUrlParts.path.split('/')[3]
-                    filePath = ('/attachments/' + project + '_' + oldFileId + fileExt).lower()
+                    filePath = ('/attachments/' + filename_start + '_' + oldFileId + fileExt).lower()
                     specialRow[3] = destination_url + filePath
                     dlPath = downloadBase + filePath
                     dlDir  = Path( dlPath ).parent
@@ -336,13 +366,14 @@ def downloadJQL ( JQL, cound_jql ):
                 writer.writerow(specialRow)
                 csvRows[i][j] = output.getvalue().strip()
                 output.close()
+            except APIError as e:
+                print( '\u001b[0;1;93;41m Error while fetching Attachment: \u001b[0m' )
+                print( cRow[j] )
+                print( repr(e) )
+                print()
             except:
                 pass
         i += 1
-    try:
-        filename_start = project
-    except:
-        filename_start = 'custom'
     csv_name = ( filename_start + '_part-' + str( cound_jql ) + datetime.today().strftime('_%Y%m%d_%H%M%S') + '.csv' ).lower()
     with open( downloadBase + '/' + csv_name , 'w' ) as f:
         writer = csv.writer( f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL )
@@ -375,22 +406,31 @@ while userLang != 'en_US':
     i += 1
 
 ###
-## start actual doing
+## check if custom JQL is given or we need to download a single project
 ###
-
 downloadBase = 'downloads'
 if custom_filter != False:
     baseJQL  = custom_filter
 else:
     baseJQL  = 'project = ' + project + ' ORDER BY key'
 
-allJQLs      = checkJQL(baseJQL)
+# check if the JQL is well defined (and ordered by key)
+checkJQL = baseJQL.strip().lower()[-13:]
+if checkJQL != ' order by key':
+    blanks = ' ' * 72
+    nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
+    sys.exit('\n\u001b[0;1;93;41m' + blanks + nl_color +' Your JQL needs to be ordered by key! Add \u001b[0;45;92m ` ORDER BY key` \u001b[0;1;93;41m at its end! ' + nl_color + blanks + '\u001b[0m\n')
 
+# strip JQL results into sets
+allJQLs = checkJQL(baseJQL)
+
+# announce the start of the downloads
 confirm_now_downloading = 'Checked the project and now starting to download CSV files for ' + str( len( allJQLs ) ) + ' JQL filter parts ...'
 blanks   = ' ' * ( len(confirm_now_downloading) + 2 )
 nl_color = '\u001b[0m\n\u001b[\033[1;42;97m'
 print('\n\u001b[\033[1;42;97m' + blanks + nl_color + ' ' + confirm_now_downloading + ' ' + nl_color + blanks + '\u001b[0m\n')
 
+# doing the actual download steps
 c_jql = 0
 for JQL in allJQLs:
     c_jql += 1
