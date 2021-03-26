@@ -72,9 +72,7 @@ if not e_dtformat:
 
 def timestampPrint( message='' ):
     now = datetime.now()
-    print('\n\u001b[4;33;100m ' + now.strftime( e_dtformat ) + ' \u001b[0m\n' + message + '\n')
-
-timestampPrint()
+    print( '\n\u001b[4;33;100m ' + now.strftime( e_dtformat ) + ' \u001b[0m\n' + message )
 
 ###
 ## ask user for relevant arguments if not already provided
