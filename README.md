@@ -28,7 +28,7 @@ The `.env` file can be copied from `.env.example` within `src/` Directory. There
 
 | ENV Variable | Default Value | Description |
 | ------------ | ------------- | ----------- |
-| `USER_MAPPING` | `{}` | JSON Dictionary with old usernames as keys and new usernames as value, so e.g. `{"old.user.1":"new.user.1","old.user.2":"new.user.2"}` |
+| `USER_MAPPING` | `{}` | JSON Dictionary with old usernames as keys and new usernames as value, so e.g. `{"old.user.1":"new.user.1","old.user.2":"new.user.2"}`.<br/> *Be aware, that a backslash `\` needs special escaping. A single `\` within an username has to be represented by 8 (!) of them, so `\\\\\\\\`!* |
 | `DOWNLOAD_URL` | `http://localhost/jira` | URL under which the attachments will be available after the export. Should be changed accordingly! |
 | `X_MAX_ISSUES` | `500` | Jira defaults to break with 1000 issues, so the value should be less or equal to that. Default size of pages in Jira is 50, so this number has to be devidable by 50. |
 | `X_JIRA_URL` | - | See arguments below `-j` |
