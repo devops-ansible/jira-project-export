@@ -38,6 +38,7 @@ The `.env` file can be copied from `.env.example` within `src/` Directory. There
 | `X_PROJECT_KEY` | - | See arguments below `-x` |
 | `X_CUSTOM_FILTER` | – | See arguments below `-f` |
 | `X_QUIET` | – | See arguments below `-q` |
+| `DATETIME_FORMAT` | `%d.%m.%Y %H:%M.%S` | Date-Time-Format (Python way) for time printouts |
 
 #### Arguments on script execution
 

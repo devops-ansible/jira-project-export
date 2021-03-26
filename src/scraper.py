@@ -53,13 +53,28 @@ destination_url = os.getenv( "DOWNLOAD_URL", "http://localhost/jira" )
 replace_users   = json.loads( os.getenv( "USER_MAPPING", "{}" ) )
 jiraMaxIssues   = int( os.getenv( "X_MAX_ISSUES", 500 ) )
 
-e_jira    = os.getenv( "X_JIRA_URL" )
-e_user    = os.getenv( "X_JIRA_USER" )
-e_cookies = os.getenv( "X_JIRA_COOKIES" )
-e_pass    = os.getenv( "X_JIRA_PASS" )
-e_prj     = os.getenv( "X_PROJECT_KEY" )
-e_jql     = os.getenv( "X_CUSTOM_FILTER" )
-e_quiet   = os.getenv( "X_QUIET" )
+e_jira     = os.getenv( "X_JIRA_URL" )
+e_user     = os.getenv( "X_JIRA_USER" )
+e_cookies  = os.getenv( "X_JIRA_COOKIES" )
+e_pass     = os.getenv( "X_JIRA_PASS" )
+e_prj      = os.getenv( "X_PROJECT_KEY" )
+e_jql      = os.getenv( "X_CUSTOM_FILTER" )
+e_quiet    = os.getenv( "X_QUIET" )
+e_dtformat = os.getenv( "DATETIME_FORMAT" )
+
+###
+## Helper function to print out the current date and time
+###
+from datetime import datetime
+try:
+    e_dtformat
+except:
+    e_dtformat = "%d.%m.%Y %H:%M.%S"
+def timestampPrint( message='' ):
+    now = datetime.now()
+    print('\n\u001b[4;33;100m ' + now.strftime( e_dtformat ) + ' \u001b[0m\n' + message + '\n')
+
+timestampPrint()
 
 ###
 ## ask user for relevant arguments if not already provided
@@ -178,10 +193,13 @@ if quiet == 'False':
     nl_color = '\u001b[0m\n\u001b[0;45;92m'
     print('\u001b[0;45;92m' + blanks + nl_color + ' The easiest way to ensure that is to put them in every ' + nl_color +' project role that does exist within the project(s).    ' + nl_color + blanks + '\u001b[0m')
     print()
-    if (not confirm()):
+    if ( not confirm() ):
         blanks = ' ' * 81
         nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
+        timestampPrint()
         sys.exit('\n\u001b[0;1;93;41m' + blanks + nl_color +' OK, we\'ve to stop here for now. Please retry after you ensured the permissions. ' + nl_color + blanks + '\u001b[0m\n')
+
+timestampPrint( 'preparing done.' )
 
 ###
 ## preparing was successful, now start
@@ -189,7 +207,6 @@ if quiet == 'False':
 import io, re, csv, requests
 from bs4       import BeautifulSoup
 from urllib    import parse
-from datetime  import datetime
 from pathlib   import Path
 
 currentSession = requests.Session()
@@ -384,7 +401,8 @@ def downloadJQL ( JQL, cound_jql ):
         writer = csv.writer( f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL )
         writer.writerow( headers )
         writer.writerows( csvRows )
-    print ('Finished downloading CSV file ' + csv_name + ' and ' + str( c_attach ) + ' corresponding attachments')
+
+    timestampPrint( 'Finished downloading CSV file ' + csv_name + ' and ' + str( c_attach ) + ' corresponding attachments' )
 
 ###
 ## Check user language to be English (United States)
@@ -429,6 +447,8 @@ if JQLtoCheck != ' order by key':
 # strip JQL results into sets
 allJQLs = checkJQL(baseJQL)
 
+timestampPrint()
+
 # announce the start of the downloads
 confirm_now_downloading = 'Checked the project and now starting to download CSV files for ' + str( len( allJQLs ) ) + ' JQL filter parts ...'
 blanks   = ' ' * ( len(confirm_now_downloading) + 2 )
@@ -440,5 +460,3 @@ c_jql = 0
 for JQL in allJQLs:
     c_jql += 1
     downloadJQL( JQL, c_jql )
-
-print()
