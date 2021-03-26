@@ -347,11 +347,16 @@ def downloadJQL ( JQL, cound_jql ):
                 specialRow = [ row for row in csv.reader( cRow[j].splitlines(), delimiter=';' ) ][0]
                 # do the attachment downloads
                 if j in attachmentIndices:
-                    dlUrlParts = parse.urlparse( specialRow[3] )
-                    dlUrl      = jira + dlUrlParts.path
-                    resp = loginAndFetch( dlUrl )
-                    fileRoot, fileExt = os.path.splitext( dlUrlParts.path )
-                    oldFileId = dlUrlParts.path.split('/')[3]
+                    dlUrlParsed = parse.urlparse( specialRow[3] )
+                    dlUrlPath   = dlUrlParsed.path
+                    jiraPathLen = len( jira_path )
+                    if jiraPathLen > 0 :
+                        if dlUrlPath[0:jiraPathLen] == jira_path:
+                            dlUrlPath = dlUrlPath[jiraPathLen:]
+                    dlUrl = jira + dlUrlPath
+                    resp  = loginAndFetch( dlUrl )
+                    fileRoot, fileExt = os.path.splitext( dlUrlPath )
+                    oldFileId = dlUrlPath.split('/')[-2]
                     filePath = ('/attachments/' + filename_start + '_' + oldFileId + fileExt).lower()
                     specialRow[3] = destination_url + filePath
                     dlPath = downloadBase + filePath
@@ -415,8 +420,8 @@ else:
     baseJQL  = 'project = ' + project + ' ORDER BY key'
 
 # check if the JQL is well defined (and ordered by key)
-checkJQL = baseJQL.strip().lower()[-13:]
-if checkJQL != ' order by key':
+JQLtoCheck = baseJQL.strip().lower()[-13:]
+if JQLtoCheck != ' order by key':
     blanks = ' ' * 72
     nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
     sys.exit('\n\u001b[0;1;93;41m' + blanks + nl_color +' Your JQL needs to be ordered by key! Add \u001b[0;45;92m ` ORDER BY key` \u001b[0;1;93;41m at its end! ' + nl_color + blanks + '\u001b[0m\n')
