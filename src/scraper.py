@@ -53,11 +53,13 @@ destination_url = os.getenv( "DOWNLOAD_URL", "http://localhost/jira" )
 replace_users   = json.loads( os.getenv( "USER_MAPPING", "{}" ) )
 jiraMaxIssues   = int( os.getenv( "X_MAX_ISSUES", 500 ) )
 
-e_jira = os.getenv( "X_JIRA_URL" )
-e_user = os.getenv( "X_JIRA_USER" )
-e_pass = os.getenv( "X_JIRA_PASS" )
-e_prj  = os.getenv( "X_PROJECT_KEY" )
-e_jql  = os.getenv( "X_CUSTOM_FILTER" )
+e_jira    = os.getenv( "X_JIRA_URL" )
+e_user    = os.getenv( "X_JIRA_USER" )
+e_cookies = os.getenv( "X_JIRA_COOKIES" )
+e_pass    = os.getenv( "X_JIRA_PASS" )
+e_prj     = os.getenv( "X_PROJECT_KEY" )
+e_jql     = os.getenv( "X_CUSTOM_FILTER" )
+e_quiet   = os.getenv( "X_QUIET" )
 
 ###
 ## ask user for relevant arguments if not already provided
@@ -86,6 +88,12 @@ except:
         jira = input('Jira URL: ')
 
 try:
+    cookies
+except:
+    if e_cookies:
+        cookies = json.loads( e_cookies )
+
+try:
     username
 except:
     if args.u != None:
@@ -93,7 +101,10 @@ except:
     elif e_user:
         username = e_user
     else:
-        username = input('Username: ')
+        try:
+            cookies
+        except:
+            username = input('Username: ')
 
 try:
     password
@@ -103,7 +114,10 @@ except:
     elif e_pass:
         password = e_pass
     else:
-        password = getpass.getpass()
+        try:
+            cookies
+        except:
+            password = getpass.getpass()
 
 try:
     custom_filter
@@ -129,22 +143,37 @@ try:
 except:
     if args.q != None:
         quiet = args.q
+    elif e_quiet:
+        quiet = e_quiet
     else:
         quiet = "False"
 
-try:
-    project
-    ensure_project_rights = 'Did you ensure, the user “' + username + '” is permitted correctly within the project “' + project + '”?'
-except:
-    ensure_project_rights = 'Did you ensure, the user “' + username + '” is permitted correctly within the projects of the given JQL?'
-
-blanks   = ' ' * ( len(ensure_project_rights) + 2 )
-nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
-print('\u001b[0;1;93;41m' + blanks + nl_color + ' ' + ensure_project_rights + ' ' + nl_color + blanks + '\u001b[0m')
-blanks = ' ' * 56
-nl_color = '\u001b[0m\n\u001b[0;45;92m'
-print('\u001b[0;45;92m' + blanks + nl_color + ' The easiest way to ensure that is to put them in every ' + nl_color +' project role that does exist within the project(s).       ' + nl_color + blanks + '\u001b[0m')
+###
+## In Non-Quiet-Mode ensure by shout out that the given user is permitted correctly
+###
 if quiet == 'False':
+
+    ensure_project_rights = "Did you ensure, "
+
+    try:
+        ensure_project_rights += username
+    except:
+        ensure_project_rights += "your cookie given user "
+
+    ensure_project_rights += "is permitted correctly within the project"
+
+    try:
+        project
+        ensure_project_rights += ' “' + project + '”?'
+    except:
+        ensure_project_rights += 's of the given JQL?'
+
+    blanks   = ' ' * ( len(ensure_project_rights) + 2 )
+    nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
+    print('\u001b[0;1;93;41m' + blanks + nl_color + ' ' + ensure_project_rights + ' ' + nl_color + blanks + '\u001b[0m')
+    blanks = ' ' * 56
+    nl_color = '\u001b[0m\n\u001b[0;45;92m'
+    print('\u001b[0;45;92m' + blanks + nl_color + ' The easiest way to ensure that is to put them in every ' + nl_color +' project role that does exist within the project(s).    ' + nl_color + blanks + '\u001b[0m')
     print()
     if (not confirm()):
         blanks = ' ' * 81
@@ -161,6 +190,13 @@ from datetime  import datetime
 from pathlib   import Path
 
 currentSession = requests.Session()
+try:
+    cookies
+    fqdn = parse.urlparse( jira ).netloc
+    for key, value in cookies.items():
+        currentSession.cookies.set( key, value, domain=fqdn )
+except:
+    pass
 
 def checkForLogin():
     resp = currentSession.get( jira )
@@ -185,8 +221,9 @@ def login():
     if resp.status_code != 200:
         raise APIError(resp.status_code)
 
-def loginAndFetch(Url, method = 'get', data = {}):
-    checkForLogin()
+def loginAndFetch(Url, method = 'get', data = {}, skipLogin = False):
+    if not skipLogin:
+        checkForLogin()
     if method == 'get':
         resp = currentSession.get  ( Url )
     else:
@@ -196,14 +233,40 @@ def loginAndFetch(Url, method = 'get', data = {}):
     return resp
 
 def checkJQL ( JQL, jqls = [] ):
-    jqlUrl = jira + '/issues/?jql=' + parse.quote( JQL )
-    resp   = loginAndFetch( jqlUrl )
-    soup   = BeautifulSoup( resp.content, 'html.parser' )
-    test   = soup.find( class_ = re.compile( "results-count-total" ) )
+    jqlUrl  = jira + '/issues/?jql=' + parse.quote( JQL )
+    listUrl = jira + '/rest/issueNav/latest/preferredSearchLayout'
+
+    # list-view has to be default – eventually the user has to interact
+    defView = ''
+    i = 0
+    while defView != 'list-view':
+        if i > 0:
+            nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
+            hint1    = 'Currently, filter results are not displayed as a list but in detail. Please change.'
+            hint2    = 'To do that, head to this url with the defined user and change on the top right side:'
+            hintUrl  = jira + '/issues/?jql='
+            length   = max( [ len( hint1 ), len( hint2 ), len( hintUrl ) ] )
+            blanks   = ' ' * ( length + 2 )
+            hint1    += ' ' * ( length - len( hint1 ) )
+            hint2    += ' ' * ( length - len( hint2 ) )
+            hintUrl  += ' ' * ( length - len( hintUrl ) )
+            print('\u001b[0;1;93;41m' + blanks + nl_color + ' ' + hint1 + ' ' + nl_color + ' ' + hint2 + ' ' + nl_color + ' ' + hintUrl + ' ' + nl_color + blanks + '\u001b[0m')
+            print()
+            confirm()
+        resp    = loginAndFetch( listUrl )
+        defView = resp.content.decode( 'utf-8' )
+        i += 1
+
+    resp    = loginAndFetch( jqlUrl )
+    soup    = BeautifulSoup( resp.content, 'html.parser' )
+    test    = soup.find( class_ = re.compile( "results-count-total" ) )
     try:
         resultCount = int( test.text )
     except:
         resultCount = 0
+
+    print()
+
     if resultCount >= jiraMaxIssues:
         pageLength = len( soup.find_all( class_ = re.compile( "issuerow" ) ) )
         startIndex = jiraMaxIssues - pageLength
@@ -279,7 +342,11 @@ def downloadJQL ( JQL, cound_jql ):
             except:
                 pass
         i += 1
-    csv_name = ( project + '_part-' + str( cound_jql ) + datetime.today().strftime('_%Y%m%d_%H%M%S') + '.csv' ).lower()
+    try:
+        filename_start = project
+    except:
+        filename_start = 'custom'
+    csv_name = ( filename_start + '_part-' + str( cound_jql ) + datetime.today().strftime('_%Y%m%d_%H%M%S') + '.csv' ).lower()
     with open( downloadBase + '/' + csv_name , 'w' ) as f:
         writer = csv.writer( f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL )
         writer.writerow( headers )

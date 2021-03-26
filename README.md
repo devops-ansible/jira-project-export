@@ -28,14 +28,16 @@ The `.env` file can be copied from `.env.example` within `src/` Directory. There
 
 | ENV Variable | Default Value | Description |
 | ------------ | ------------- | ----------- |
-| `USER_MAPPING` | `{}`  | JSON Dictionary with old usernames as keys and new usernames as value, so e.g. `{"old.user.1":"new.user.1","old.user.2":"new.user.2"}` |
+| `USER_MAPPING` | `{}` | JSON Dictionary with old usernames as keys and new usernames as value, so e.g. `{"old.user.1":"new.user.1","old.user.2":"new.user.2"}` |
 | `DOWNLOAD_URL` | `http://localhost/jira` | URL under which the attachments will be available after the export. Should be changed accordingly! |
 | `X_MAX_ISSUES` | `500` | Jira defaults to break with 1000 issues, so the value should be less or equal to that. Default size of pages in Jira is 50, so this number has to be devidable by 50. |
 | `X_JIRA_URL` | - | See arguments below `-j` |
 | `X_JIRA_USER` | - | See arguments below `-u` |
 | `X_JIRA_PASS` | - | See arguments below `-p` |
+| `X_JIRA_COOKIES` | – | Use this JSON String variable to define cookies to avoid the Jira login (so usage can replace `X_JIRA_USER` and `X_JIRA_PASS`). |
 | `X_PROJECT_KEY` | - | See arguments below `-x` |
 | `X_CUSTOM_FILTER` | – | See arguments below `-f` |
+| `X_QUIET` | – | See arguments below `-q` |
 
 #### Arguments on script execution
 
@@ -50,7 +52,7 @@ By these, you can override (some) settings from `.env` file – see comments bel
 | `-p`     | Jira Password | `X_JIRA_PASS` | String | – | Password corresponding to `X_JIRA_USER` |
 | `-x`     | Export Jira Project – Project Key | `X_PROJECT_KEY` | String | – | Jira Project Key to be exported |
 | `-q`     | Quiet / Headless mode | – | Boolean (`True`, `1`) | `False` | There is a confirmation step if this parameter is not set to ensure, `X_JIRA_USER` has all permissions within the project `X_PROJECT_KEY`. |
-| `-f`     | Filter / JQL instead of project | – | String | – | A (fully tested / working) JQL string instead of selecting projects by their key. |
+| `-f`     | Filter / JQL instead of project | – | String | – | A (fully tested / working) JQL string instead of selecting projects by their key. **IMPORTANT:** please ensure your JQL to be ordered by issue keys, so the last part of the overall JQL has to be `ORDER BY key`. |
 
 ### Running the export
 
@@ -69,6 +71,8 @@ docker exec -it project_exporter ./scraper.py
 ```sh
 docker exec -it project_exporter ./scraper.py -j "http://178.18.0.34:8080" -u jira_user -p password -x TODO -q 1
 ```
+
+* usage of an `.env` file with the environmental variables listed above can enable the quiet mode with the first command, too!
 
 Finally, you'll find all downloaded data – attachments and CSV export – within the `downloads` directory.
 
