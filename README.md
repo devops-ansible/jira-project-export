@@ -34,7 +34,7 @@ The `.env` file can be copied from `.env.example` within `src/` Directory. There
 | `X_JIRA_URL` | - | See arguments below `-j` |
 | `X_JIRA_USER` | - | See arguments below `-u` |
 | `X_JIRA_PASS` | - | See arguments below `-p` |
-| `X_JIRA_COOKIES` | – | Use this JSON String variable to define cookies to avoid the Jira login (so usage can replace `X_JIRA_USER` and `X_JIRA_PASS`). |
+| `X_JIRA_COOKIES` | – | Use this JSON String variable to define cookies to avoid the Jira login (so usage can replace `X_JIRA_PASS` or corresponding `-p`). |
 | `X_PROJECT_KEY` | - | See arguments below `-x` |
 | `X_CUSTOM_FILTER` | – | See arguments below `-f` |
 | `X_QUIET` | – | See arguments below `-q` |
@@ -48,7 +48,7 @@ By these, you can override (some) settings from `.env` file – see comments bel
 | Argument | Help | ENV override | possible values | default value | Description |
 | -------- | ---- | ------------ | --------------- | ------------- | ----------- |
 | `-j`     | Jira URL | `X_JIRA_URL` | String | – | Full URL (without trailing slash) of the Jira instance, the export project could be found. There something like `http://172.18.0.8:8080` or `https://jira.example.com` is valid. |
-| `-u`     | Jira User | `X_JIRA_USER` | String | – | Username to export the project. User has to be permitted full access to the project to be exported. |
+| `-u`     | Jira User | `X_JIRA_USER` | String | – | Username to export the project. User has to be permitted full access to the project to be exported, filter result default view set to `list-view` and language set to `English (United States)`. |
 | `-p`     | Jira Password | `X_JIRA_PASS` | String | – | Password corresponding to `X_JIRA_USER` |
 | `-x`     | Export Jira Project – Project Key | `X_PROJECT_KEY` | String | – | Jira Project Key to be exported |
 | `-q`     | Quiet / Headless mode | – | Boolean (`True`, `1`) | `False` | There is a confirmation step if this parameter is not set to ensure, `X_JIRA_USER` has all permissions within the project `X_PROJECT_KEY`. |

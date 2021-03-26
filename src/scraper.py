@@ -101,10 +101,7 @@ except:
     elif e_user:
         username = e_user
     else:
-        try:
-            cookies
-        except:
-            username = input('Username: ')
+        username = input('Username: ')
 
 try:
     password
@@ -352,6 +349,34 @@ def downloadJQL ( JQL, cound_jql ):
         writer.writerow( headers )
         writer.writerows( csvRows )
     print ('Finished downloading CSV file ' + csv_name + ' and ' + str( c_attach ) + ' corresponding attachments')
+
+###
+## Check user language to be English (United States)
+###
+apiUrl   = jira + '/rest/api/2/user?username=' + username
+userLang = ''
+i = 0
+while userLang != 'en_US':
+    if i > 0:
+        nl_color = '\u001b[0m\n\u001b[0;1;93;41m'
+        hint1    = 'Please ensure the user “' + username + '” to use “English (United States)” as'
+        hint2    = 'default language. To change that, head to this url and change the language settings:'
+        hintUrl  = jira + '/secure/ViewProfile.jspa'
+        length   = max( [ len( hint1 ), len( hint2 ), len( hintUrl ) ] )
+        blanks   = ' ' * ( length + 2 )
+        hint1    += ' ' * ( length - len( hint1 ) )
+        hint2    += ' ' * ( length - len( hint2 ) )
+        hintUrl  += ' ' * ( length - len( hintUrl ) )
+        print('\u001b[0;1;93;41m' + blanks + nl_color + ' ' + hint1 + ' ' + nl_color + ' ' + hint2 + ' ' + nl_color + ' ' + hintUrl + ' ' + nl_color + blanks + '\u001b[0m')
+        print()
+        confirm()
+    resp     = loginAndFetch( apiUrl )
+    userLang = json.loads( resp.content.decode( 'utf-8' ) )[ 'locale' ]
+    i += 1
+
+###
+## start actual doing
+###
 
 downloadBase = 'downloads'
 if custom_filter != False:
