@@ -66,10 +66,10 @@ e_dtformat = os.getenv( "DATETIME_FORMAT" )
 ## Helper function to print out the current date and time
 ###
 from datetime import datetime
-try:
-    e_dtformat
-except:
+
+if not e_dtformat:
     e_dtformat = "%d.%m.%Y %H:%M.%S"
+
 def timestampPrint( message='' ):
     now = datetime.now()
     print('\n\u001b[4;33;100m ' + now.strftime( e_dtformat ) + ' \u001b[0m\n' + message + '\n')
