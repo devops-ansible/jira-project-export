@@ -338,8 +338,11 @@ def downloadJQL ( JQL, cound_jql ):
     resp      = loginAndFetch( jqlUrl )
     csvstring = resp.content.decode("utf-8")
     for oldUser, replaceUser in replace_users.items():
-        csvstring = re.sub('\[~' + oldUser + '\]', '[~' + replaceUser + ']', csvstring)
-        csvstring = re.sub('(^|,|;)' + oldUser + '(;|,|$)', '\g<1>' + replaceUser + '\g<2>', csvstring)
+        mentionRE  = r'\[~' + oldUser + r'\]'
+        csvValueRE = r'(^|,|;)(' + oldUser + r')(;|,|$)'
+        csvstring  = re.sub( mentionRE, '[~' + replaceUser + ']', csvstring)
+        while re.search( csvValueRE, csvstring ):
+            csvstring = re.sub( csvValueRE, '\g<1>' + replaceUser + '\g<3>', csvstring)
     csvRows   = [ row for row in csv.reader( csvstring.splitlines(), delimiter=',' ) ]
     headers   = csvRows[0]
     csvRows.pop(0)
