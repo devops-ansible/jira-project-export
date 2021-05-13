@@ -87,6 +87,91 @@ To run a webserver like that, you can simply follow this example – and run it 
 docker run -d --rm -v $(pwd)/downloads:/var/www/html --network="database" --name "name-of-the-import-container" devopsansiblede/apache
 ```
 
+## Usernames change from old instance to new instance
+
+Sometimes, the usernames within old and new instances differ for reasons. The whole tool suggests that you already know them while running it above. If you do not know them, the export will not handle them and you have to do it after running the export.
+
+To fix that, you can use these small Python snippets – our recommendation is, to stay within a Python Docker container to proceed:
+
+### Retrive the usernames
+
+Name your files `1.csv` to `x.csv` where `x` is a number greater than 1. Place these files within the folder `export` and run the script below – after you changed at least the `maxFile` variable.
+
+*Probably you should also check, if there do exist more user fields, you can add to `directUserH` helper variable or some more sub-CSV-Fields to be handled like `Comments` or `Log Work` ...*
+
+```py
+import csv, json, re
+
+maxFile = 4;
+
+users = []
+directUserH = [ "Assignee", "Reporter", "Creator", "Watchers" ]
+
+for x in list( range( 1, maxFile + 1 ) ):
+    csvstring = ""
+    with open('export/' + str(x) + '.csv') as f:
+        csvstring = f.read()
+    csvRows   = [ row for row in csv.reader( csvstring.splitlines(), delimiter=',' ) ]
+    headers   = csvRows.pop(0)
+    userRE =  r'\[~(.*?)\]'
+    users  += re.findall(userRE, csvstring)
+    for row in csvRows:
+        i = 0
+        for h in headers:
+            if h in directUserH:
+                users += [ row[ i ] ]
+            elif h == 'Log Work':
+                if row[ i ] != '':
+                    users += [ list(csv.reader( [ row[ i ] ] , delimiter=';' ))[0][-2] ]
+                # do the things with log work
+            elif h == 'Comment':
+                if row[ i ] != '':
+                    users += [ list(csv.reader( [ row[ i ] ] , delimiter=';' ))[0][1] ]
+                # do the things with comments
+            i += 1
+    users = list(dict.fromkeys(users))
+
+print( json.dumps( dict.fromkeys( users, '' ), sort_keys=True, indent=4 ) )
+```
+
+This will give you a JSON Dictionary with all old users as keys and empty strings as values.
+
+As a next step remove all the users that remain the same and add the new usernames for those as values to the JSON dictionary, so the transformation can be successful.
+
+**Adjust also the last comma, if you were deleting values ... invalid JSON cannot be handled below"**
+
+### Replace the usernames
+
+Now create the file `users.json` and paste your result from above. The file has to be a sibbling to `export` directory.
+
+After that was done, you can proceed by this Python snippet:
+
+```py
+import csv, json, re, os
+
+with open( 'users.json' ) as users_json:
+    replace_users = json.load( users_json )
+
+if not os.path.exists('import'):
+    os.makedirs('import')
+
+for x in list(range(1, 5)):
+    csvstring = ""
+    with open('export/' + str(x) + '.csv') as f:
+        csvstring = f.read()
+    for oldUser, replaceUser in replace_users.items():
+        mentionRE = r'\[~' + oldUser + r'\]'
+        csvValueRE = r'(^|,|;)(' + oldUser + r')(;|,|$)'
+        csvstring = re.sub( mentionRE, '[~' + replaceUser + ']', csvstring)
+        while re.search( csvValueRE, csvstring ):
+            csvstring = re.sub( csvValueRE, r'\g<1>' + replaceUser + r'\g<3>', csvstring)
+    with open( 'import/' + str(x) + '.csv' , 'w' ) as f:
+        f.write( csvstring )
+```
+
+This snippet reads the JSON file (and bricks if the JSON is not valid!) and continues with the user replacement. After replacing the users within the CSV files, the export files will be placed within the `import` directory.
+
+
 ## License
 
 This project is published unter [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) license.
